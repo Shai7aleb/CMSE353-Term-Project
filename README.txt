@@ -1,0 +1,1 @@
+This is the repository to be used for our glorious crypto currency system
