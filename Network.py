@@ -1,5 +1,8 @@
 from socket import *
 import secrets
+import ctypes
+import os
+import time
 
 '''
     This is the Network Module. As it is now, it is not very
@@ -34,36 +37,55 @@ class Message:
 class broadcaster:
     __PORT_NUM = 8333
     def __init__(self):
-        self.__sudp = socket(AF_INET,SOCK_DGRAM)
-        self.__sudp.bind(('',self.__PORT_NUM))
-        self.__sudp.setblocking(False)
-        self.__sudp.setsockopt(SOL_SOCKET,SO_BROADCAST,True)
+        #get local ip addresses
+        ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces32.dll').getaddresses 
+        #for some reason CDLL doesnt like relative file paths
+        #note that if your interpreter is 64 bit use nifaces64
+        #getaddresses is a function imported from the dll that returns a list of broadcast addresses as space seperated values
+        ga.restype = ctypes.c_char_p
+        ipaddress = [i for i in ga().decode().split(' ') ] #list of local ip addresses
+        
+        #initialize sockets
+        self.__sudp = []
+        for addr in ipaddress:
+            s = socket(AF_INET,SOCK_DGRAM)
+            s.bind((addr,self.__PORT_NUM))
+            s.setblocking(False)
+            s.setsockopt(SOL_SOCKET,SO_BROADCAST,True)
+            self.__sudp.append(s)
+        
         self.__uniquetoken = secrets.token_bytes(8) #this is done to prevent a device recieving message from itself
         
     def close(self):
-        self.__sudp.shutdown()
-        self.__sudp.close()
+        for s in self.__sudp:
+            s.shutdown()
+            s.close()
         
     def send(self,data,taddress = None):
         ut = self.__uniquetoken
         while True:
          try:
             if taddress == None:
-                self.__sudp.sendto(ut + data,('255.255.255.255',self.__PORT_NUM))
+                for s in self.__sudp:
+                    s.sendto(ut + data,('255.255.255.255',self.__PORT_NUM))
+                    time.sleep(1/20) #delay to prevent packet loss
             else:
-                self.__sudp.sendto(ut + data,(taddress,self.__PORT_NUM))
+                for s in self.__sudp:
+                    s.sendto(ut + data,(taddress,self.__PORT_NUM))
+                    time.sleep(1/20) #delay to prevent packet loss
             break;
          except:
             continue
             
     def recv(self):
-        try:
-            data,ipandport =  self.__sudp.recvfrom(4096)
-            if(data[0:8] != self.__uniquetoken):
-                return (data[8:],ipandport[0]) #remove first 8 bytes
-            else:
-                return None
-        except:
-            return None
+        for s in self.__sudp:
+            try:
+                data,ipandport =  s.recvfrom(4096)
+                if(data[0:8] != s.__uniquetoken):
+                    return (data[8:],ipandport[0]) #remove first 8 bytes
+            except:
+                pass
+
+        return None
         
         
