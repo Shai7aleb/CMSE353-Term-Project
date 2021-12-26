@@ -15,7 +15,7 @@ extern "C" __declspec(dllexport) char* getaddresses(void) {
 		GetIpAddrTable(addrs, &size, FALSE);
 	}
 
-	char* retlist = (char*)malloc(15ull * addrs->dwNumEntries); //an ip address is 15 chars maximum
+	char* retlist = (char*)malloc(16ull * addrs->dwNumEntries); //an ip address is 16 chars maximum including space/null terminator
 
 	unsigned c = 0u;
 	unsigned i;

@@ -41,7 +41,7 @@ class broadcaster:
         ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces32.dll').getaddresses 
         #for some reason CDLL doesnt like relative file paths
         #note that if your interpreter is 64 bit use nifaces64
-        #getaddresses is a function imported from the dll that returns a list of broadcast addresses as space seperated values
+        #getaddresses is a function imported from the dll that returns a list of local ip addresses as space seperated values
         ga.restype = ctypes.c_char_p
         ipaddress = [i for i in ga().decode().split(' ') ] #list of local ip addresses
         
@@ -74,7 +74,7 @@ class broadcaster:
                     s.sendto(ut + data,(taddress,self.__PORT_NUM))
                     time.sleep(1/20) #delay to prevent packet loss
             break;
-         except:
+         except Exception:
             continue
             
     def recv(self):
@@ -83,7 +83,7 @@ class broadcaster:
                 data,ipandport =  s.recvfrom(4096)
                 if(data[0:8] != s.__uniquetoken):
                     return (data[8:],ipandport[0]) #remove first 8 bytes
-            except:
+            except Exception:
                 pass
 
         return None
