@@ -6,24 +6,24 @@ import time
 
 '''
     This is the Network Module. As it is now, it is not very
-    very reilable but atleas implements the basic interface to be 
+    very reilable but atleast implements the basic interface to be 
     used by the other modules.
     
     Brief documentation:
-    broadcaster()
+    network()
         create a network object
     
-    broadcaster.send(data,target_address) 
+    network.send(data,target_address) 
         send data(in bytes).
         target_address is optional and only specified if you want to send
         data to a particular device. To broadcast, omit this parameter.
     
-    broadcaster.recv() 
+    network.recv() 
         recieve data. It returns (message,source_address)
         if a message was recieved. Otherwise, it will return None.
         Note, this function is garanteed to return no more than 1 message.
         
-    broadcaster.close()
+    network.close()
         call this function when you are done using this object
 '''
 
@@ -34,13 +34,17 @@ class Message:
     def __bytes__(self):
         return header.to_bytes(4,'big') + data
 
-class broadcaster:
+class network:
     __PORT_NUM = 8333
     def __init__(self):
         #get local ip addresses
-        ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces32.dll').getaddresses 
+        ga = None
+        try: #try loading the 64 bit dll, if that doesnt work, load the 32 bit one
+            ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces64.dll').getaddresses 
+        except OSError:
+            ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces32.dll').getaddresses
+            
         #for some reason CDLL doesnt like relative file paths
-        #note that if your interpreter is 64 bit use nifaces64
         #getaddresses is a function imported from the dll that returns a list of local ip addresses as space seperated values
         ga.restype = ctypes.c_char_p
         ipaddress = [i for i in ga().decode().split(' ') ] #list of local ip addresses
