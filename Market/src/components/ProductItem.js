@@ -12,17 +12,9 @@ function ProductItem({ id, productName, productPrice }) {
         {productName}
       </chakra.h1>
 
-      <chakra.p
-        mt={2}
-        fontSize="sm"
-        color={useColorModeValue("gray.600", "gray.400")}
-      >
-        Lorem ipsum dolor sit amet consectetur adipisicing elit In odit
-      </chakra.p>
-
       <Flex mt={3} alignItems="center" justifyContent="space-between">
         <chakra.h1 color="white" fontWeight="bold" fontSize="lg">
-          {productPrice}
+          {productPrice + " ETH"}
         </chakra.h1>
         <chakra.button
           px={2}
