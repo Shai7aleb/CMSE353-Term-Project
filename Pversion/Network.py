@@ -3,93 +3,201 @@ import secrets
 import ctypes
 import os
 import time
+from threading import Thread,Lock
 
-'''
-    This is the Network Module. As it is now, it is not very
-    very reilable but atleast implements the basic interface to be 
-    used by the other modules.
+def _addrstobytes(addrs): #convert list of ip addresses to bytes with space seperated values
+    return ' '.join(addrs).encode()
     
-    Brief documentation:
-    network()
-        create a network object
+def _bytestoaddrs(byts): #convert list of ip addresses to bytes with space seperated values
+    if len(byts) > 0:
+        return set(byts.decode().split(' '))
+    else:
+        return set()
+
+def _recvmsg(sock):
+    sock.setblocking(False)
+    buffer = None
+    try:
+        buffer = sock.recv(4)
+    except Exception:
+        return None
     
-    network.send(data,target_address) 
-        send data(in bytes).
-        target_address is optional and only specified if you want to send
-        data to a particular device. To broadcast, omit this parameter.
-    
-    network.recv() 
-        recieve data. It returns (message,source_address)
-        if a message was recieved. Otherwise, it will return None.
-        Note, this function is garanteed to return no more than 1 message.
+    sock.setblocking(True)
+    while(len(buffer) < 4):
+        addbuff = sock.recv(4 - len(buffer))
+        buffer += addbuff
         
-    network.close()
-        call this function when you are done using this object
-'''
+    msglen = int.from_bytes(buffer,'big')
+    buffer = b''
+    
+    while(len(buffer) < msglen):
+        addbuff = sock.recv(msglen - len(buffer))
+        buffer += addbuff
+        
+    return buffer
 
-class Message:
-    def __init__(self,header,data):
-        self.header = header
-        self.data = data
-    def __bytes__(self):
-        return header.to_bytes(4,'big') + data
+def _sendmsg(sock,data):
+    length = len(data).to_bytes(4,'big')
+    sock.sendall(length + data)
 
 class network:
-    __PORT_NUM = 8333
+    def __Thread2(self): #this thread running in the background    
+        tcplistener = socket(AF_INET,SOCK_STREAM)
+        tcplistener.bind(('',self.__PORT_NUM))
+        tcplistener.listen()
+        
+        while True:
+            srecv = self.__udprecv()
+            if (srecv is not None):
+                if(srecv[0][8:9] == self.__CONNREQST):
+                    csock,_ = tcplistener.accept()
+                    self.__stcplock.acquire()
+                    
+                    self.__stcp.add(csock)
+                    self.__taddrs.add(srecv[1])
+                    
+                    self.__stcplock.release()
+                elif(srecv[0][8:9] == self.__INITQUERY):
+                    self.__udpsend(self.__QRESPONSE + _addrstobytes(self.__taddrs),srecv[1])
+        
     def __init__(self):
-        #get local ip addresses
+        #------------------------defining class members------------------------
+        self.__stcp = set() #set of tcp sockets with peers
+        self.__stcplock = Lock() #a mutex used when accessing __stcp
+        self.__sudp = [] #set of local udp sockets
+        self.__uniquetoken = secrets.token_bytes(8) #this is done to prevent a device recieving message from itself
+        self.__PORT_NUM = 8333
+        self.__taddrs = set() #a set of ip addresses of peers
+        #message ENUMS
+        self.__INITQUERY = (0).to_bytes(1,'big') #initial query
+        self.__QRESPONSE = (1).to_bytes(1,'big') #query response
+        self.__QRESPONSEN = (2).to_bytes(1,'big') #query response from non connected device
+        self.__CONNREQST = (3).to_bytes(1,'big') #send connection request
+        self.__thread2 = None
+        
+        #------------------------get local ip addresses----------------------------
         ga = None
         try: #try loading the 64 bit dll, if that doesnt work, load the 32 bit one
-            ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces64.dll').getaddresses 
+            ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces64.dll').getaddresses #for some reason CDLL doesnt like relative file paths
         except OSError:
-            ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces32.dll').getaddresses
+            ga = ctypes.CDLL(os.path.dirname(__file__) + '\\nifaces32.dll').getaddresses #for some reason CDLL doesnt like relative file paths
             
-        #for some reason CDLL doesnt like relative file paths
         #getaddresses is a function imported from the dll that returns a list of local ip addresses as space seperated values
         ga.restype = ctypes.c_char_p
-        ipaddress = [i for i in ga().decode().split(' ') ] #list of local ip addresses
+        ipaddress = ga().decode().split(' ') #list of local ip addresses
         
-        #initialize sockets
-        self.__sudp = []
+        #------------------------initialize UDP sockets-------------------------------
         for addr in ipaddress:
-            s = socket(AF_INET,SOCK_DGRAM)
-            s.bind((addr,self.__PORT_NUM))
-            s.setblocking(False)
-            s.setsockopt(SOL_SOCKET,SO_BROADCAST,True)
-            self.__sudp.append(s)
+            try:
+                s = socket(AF_INET,SOCK_DGRAM)
+                s.bind((addr,self.__PORT_NUM))
+                s.setblocking(False)
+                s.setsockopt(SOL_SOCKET,SO_BROADCAST,True)
+                self.__sudp.append(s)
+            except Exception:
+                pass
         
-        self.__uniquetoken = secrets.token_bytes(8) #this is done to prevent a device recieving message from itself
+        #-------------------------Detect other devices on the network------------------------------
+        for i in range(15): #try 15 times to counter risk of packet loss
+            self.__udpsend(self.__INITQUERY + _addrstobytes(self.__taddrs)) #broadcast an initial query
+            time.sleep(1/10) #wait for responses
+            
+            while True: #note the format of the packets is as follows: unique_tag(8 bytes) + messagetype(1 byte) + additional info(rest of the messaage)
+                r = self.__udprecv()
+                if r is not None:
+                    if(r[0][8:9] == self.__QRESPONSE):
+                        self.__taddrs.add(r[1])
+                        self.__taddrs.update(_bytestoaddrs(r[0][9:]))
+                    elif(r[0][8:9] == self.__QRESPONSEN and r[0][0:8] > self.__uniquetoken): #the second check is to avoid the situation where 2 devices try to connect to each other
+                        self.__taddrs.add(r[1]) #done to avoid deadloack
+                        self.__taddrs.update(_bytestoaddrs(r[0][9:]))
+                    elif(r[0][8:9] == self.__INITQUERY):
+                        self.__udpsend(self.__QRESPONSEN + _addrstobytes(self.__taddrs),r[1])
+                else:
+                    break
+        #------------------------establish connection to the detected devices---------------------------
+        for i in self.__taddrs:
+            s = socket(AF_INET , SOCK_STREAM)
+            for j in range(15): #try 15 times before terminating
+                self.__udpsend(self.__CONNREQST,i)
+                time.sleep(1/20)
+                try:
+                    s.connect((i,self.__PORT_NUM))
+                    self.__stcp.add(s)
+                    break
+                except Exception:
+                    pass
+            
+        #-----------------------start the other thread-------------------------------------------
+        self.__thread2 = Thread(target = self.__Thread2)
+        self.__thread2.daemon = True #makes to so that this thread kills itself when the main thread is closed
+        self.__thread2.start()
+        return
         
+                
     def close(self):
+        for s in self.__stcp:
+            s.shutdown(SHUT_RDWR)
+            s.close()
+            
         for s in self.__sudp:
-            s.shutdown()
+            s.shutdown(SHUT_RDWR)
             s.close()
         
-    def send(self,data,taddress = None):
-        ut = self.__uniquetoken
-        while True:
-         try:
-            if taddress == None:
-                for s in self.__sudp:
+    def __udpsend(self,data,taddress = None):
+       ut = self.__uniquetoken
+       if taddress == None:
+           for s in self.__sudp:
+                try:
                     s.sendto(ut + data,('255.255.255.255',self.__PORT_NUM))
-                    time.sleep(1/20) #delay to prevent packet loss
-            else:
-                for s in self.__sudp:
+                except OSError:
+                    pass
+       else:
+           for s in self.__sudp:
+                try:
                     s.sendto(ut + data,(taddress,self.__PORT_NUM))
                     time.sleep(1/20) #delay to prevent packet loss
-            break;
-         except Exception:
-            continue
+                except OSError:
+                    pass
             
-    def recv(self):
+    def __udprecv(self):
         for s in self.__sudp:
             try:
                 data,ipandport =  s.recvfrom(4096)
-                if(data[0:8] != s.__uniquetoken):
-                    return (data[8:],ipandport[0]) #remove first 8 bytes
-            except Exception:
+                if(data[0:8] != self.__uniquetoken):
+                    return (data,ipandport[0])
+            except BlockingIOError:
                 pass
 
         return None
+            
+    def recv(self):
+        self.__stcplock.acquire() #acquire mutex
+        buffer = None
+        src = None
         
+        for i in self.__stcp:
+            buffer = _recvmsg(i)
+            if buffer is not None:
+                src = i.getpeername()[0]
+                break
         
+        self.__stcplock.release() #release mutex
+        
+        if src is not None:
+            return (buffer , src)
+        else:
+            return None
+    
+    def send(self,data,target = None):
+        self.__stcplock.acquire() #acquire mutex
+        length = len(data).to_bytes(4,'big')
+        if target == None:
+            for i in self.__stcp: #send message to all peers
+                _sendmsg(i,data)
+        else:
+            for i in self.__stcp:
+                if(i.getpeername()[0] == target): #only send message to specified peer
+                    _sendmsg(i,data)
+                    break
+        self.__stcplock.release() #release mutex
