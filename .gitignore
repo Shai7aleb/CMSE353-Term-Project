@@ -1,3 +1,27 @@
 *.pyc
 __pycache__
 Market/node_modules
+Market/.pnp
+Market/.pnp.js
+
+# testing
+Market/coverage
+
+# production
+Market/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+Market/.DS_Store
+Market/.env.local
+Market/.env.development.local
+Market/.env.test.local
+Market/.env.production.local
+
+Market/npm-debug.log*
+Market/yarn-debug.log*
+Market/yarn-error.log*
