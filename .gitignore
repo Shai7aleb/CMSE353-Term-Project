@@ -3,6 +3,7 @@ __pycache__
 Market/node_modules
 Market/.pnp
 Market/.pnp.js
+Market/src/abis/*
 
 # testing
 Market/coverage
