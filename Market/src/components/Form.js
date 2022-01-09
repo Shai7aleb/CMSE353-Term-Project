@@ -19,7 +19,7 @@ import SuccessAlert from "./SuccessAlert";
 //     productPrice:
 // }
 
-const Form = ({ marketContract, account }) => {
+const Form = ({ marketContract, account, fetchProducts }) => {
   const [loading, setLoading] = useState(false);
   const [displaySuccess, setDisplaySuccess] = useState(false);
   const productNameInput = useRef(null);
@@ -44,9 +44,10 @@ const Form = ({ marketContract, account }) => {
       .createProduct(productName, productPriceInWei)
       .send({ from: account })
       .once("receipt", (receipt) => {
-        console.log(receipt);
+        // console.log(receipt);
         setLoading(false);
         setDisplaySuccess(true);
+        fetchProducts();
       });
   };
 

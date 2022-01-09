@@ -13,6 +13,7 @@ import {
   IconButton,
   CloseButton,
 } from "@chakra-ui/react";
+import Logo from "../Logo.png";
 
 import { useNavigate } from "react-router-dom";
 
@@ -38,19 +39,29 @@ const Navbar = ({ accountAddress }) => {
         shadow="md"
       >
         <Flex alignItems="center" justifyContent="space-between" mx="auto">
-          <Flex>
+          <chakra.img
+            src={Logo}
+            alt="Logo"
+            h="100px"
+            w="auto"
+            position="absolute"
+          />
+          <Flex ml="10%">
             <chakra.a
               href="/"
-              title="Decentralized MarketPlace"
+              title="Crypto Shop HomePage"
               display="flex"
               alignItems="center"
-            >
-              {/* <Logo /> */}
-              <VisuallyHidden>Decentralized Marketplace</VisuallyHidden>
-            </chakra.a>
-            <chakra.h1 fontSize="xl" fontWeight="medium" ml="2">
-              Decentralized Marketplace
-            </chakra.h1>
+            ></chakra.a>
+            <HStack display="flex" alignItems="center" spacing={1}>
+              {/* <chakra.h3>Test</chakra.h3> */}
+              <Button variant="ghost" onClick={navigateToProduct}>
+                Products
+              </Button>
+              <Button variant="ghost" onClick={navigateToSeller}>
+                Sell
+              </Button>
+            </HStack>
           </Flex>
           <HStack display="flex" alignItems="center" spacing={1}>
             <HStack
@@ -59,17 +70,8 @@ const Navbar = ({ accountAddress }) => {
               color="brand.500"
               display={{ base: "none", md: "inline-flex" }}
             >
-              <Button variant="ghost" onClick={navigateToProduct}>
-                Products
-              </Button>
-              <Button variant="ghost" onClick={navigateToSeller}>
-                Sell
-              </Button>
               <chakra.h2 fontWeight="medium">{accountAddress}</chakra.h2>
             </HStack>
-            {/* <Button colorScheme="brand" size="sm">
-              Get Started
-            </Button> */}
             <Box display={{ base: "inline-flex", md: "none" }}>
               <IconButton
                 display={{ base: "flex", md: "none" }}
@@ -77,7 +79,6 @@ const Navbar = ({ accountAddress }) => {
                 fontSize="20px"
                 color={useColorModeValue("gray.800", "inherit")}
                 variant="ghost"
-                // icon={<AiOutlineMenu />}
                 onClick={mobileNav.onOpen}
               />
 

@@ -32,7 +32,7 @@ import ProductItem from "./ProductItem";
 
 function ProductPage(props) {
   return (
-    <SimpleGrid columns={4} spacing={5}>
+    <SimpleGrid columns={[1, 2, 3, 4]} spacing={5}>
       {props.data.map((e, i) => {
         return (
           <ProductItem
@@ -40,9 +40,9 @@ function ProductPage(props) {
             id={e.id}
             productName={e.name}
             productPrice={e.price}
-            purchaseFunction = {props.purchFunc}
-            owned = {props.currentUser == e.owner}
-            purchased = {e.purchased}
+            purchaseFunction={props.purchFunc}
+            owned={props.currentUser === e.owner}
+            purchased={e.purchased}
           />
         );
       })}

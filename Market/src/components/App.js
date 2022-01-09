@@ -50,6 +50,21 @@ const App = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    // console.log("Fetching products");
+    const productCount = await marketContract.methods.productCount().call();
+    let listofProducts = [];
+    for (var i = 1; i <= productCount; i++) {
+      const product = await marketContract.methods.products(i).call();
+      // console.log(product)
+      if (product.owner === account[0] || product.purchased === false) {
+        //display if available for sale or owned
+        listofProducts = [...listofProducts, product];
+      }
+    }
+    setProducts(listofProducts);
+  };
+
   const loadDataFromBlockChain = async () => {
     const web3 = window.web3;
 
@@ -64,18 +79,19 @@ const App = () => {
 
       //------------------Load a list of products from the blockchain------------------
       const marketplace = await new web3.eth.Contract(abi, address);
+      setMarketContract(marketplace);
       const productCount = await marketplace.methods.productCount().call();
-      let listofProducts = []
-      for(var i = 1;i <= productCount;i++){
-            const product = await marketplace.methods.products(i).call();
-            console.log(product)
-            if(product.owner == accounts[0] || product.purchased == false){ //display if available for sale or owned
-                listofProducts = [...listofProducts,product]
-            }
+      let listofProducts = [];
+      for (var i = 1; i <= productCount; i++) {
+        const product = await marketplace.methods.products(i).call();
+        // console.log(product)
+        if (product.owner === accounts[0] || product.purchased === false) {
+          //display if available for sale or owned
+          listofProducts = [...listofProducts, product];
+        }
       }
       setProducts(listofProducts);
       //------------------Finish loading the products-----------------------------
-      setMarketContract(marketplace);
       setLoading(false);
     } else {
       // console.log(
@@ -93,22 +109,45 @@ const App = () => {
   useEffect(() => {
     initializeMain();
   }, []);
-  
-  const purchaseProduct = (id,price) => {
-      console.log(account , id, price)
-      setLoading(true)
-      marketContract.methods.purchaseProduct(id).send({from: account,value: price}).once('reciept',(reciept)=>setLoading(false)).catch(e => console.log('user cancelled transaction'))
-  }
-  
+
+  const purchaseProduct = (id, price) => {
+    // console.log(account , id, price)
+    console.log("Purchasing product");
+    setLoading(true);
+    marketContract.methods
+      .purchaseProduct(id)
+      .send({ from: account, value: price })
+      .once("receipt", (receipt) => {
+        console.log("Receiving receipt");
+        setLoading(false);
+      })
+      .catch((e) => console.log("user cancelled transaction"));
+  };
+
   return (
     <BrowserRouter>
       <ChakraProvider theme={theme}>
         <Navbar accountAddress={account} />
         <Routes>
-          <Route path="/" element={<ProductPage data = {products} purchFunc = {purchaseProduct} currentUser = {account}/>} />
+          <Route
+            path="/"
+            element={
+              <ProductPage
+                data={products}
+                purchFunc={purchaseProduct}
+                currentUser={account}
+              />
+            }
+          />
           <Route
             path="addproduct"
-            element={<Form marketContract={marketContract} account={account}/>}
+            element={
+              <Form
+                marketContract={marketContract}
+                account={account}
+                fetchProducts={fetchProducts}
+              />
+            }
           />
         </Routes>
       </ChakraProvider>
