@@ -119,6 +119,7 @@ const App = () => {
       .send({ from: account, value: price })
       .once("receipt", (receipt) => {
         console.log("Receiving receipt");
+        window.location.reload();
         setLoading(false);
       })
       .catch((e) => console.log("user cancelled transaction"));

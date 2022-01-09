@@ -13,7 +13,7 @@ import {
   IconButton,
   CloseButton,
 } from "@chakra-ui/react";
-import Logo from "../Logo.png";
+import Logo from "../logo.png";
 
 import { useNavigate } from "react-router-dom";
 
